@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài 13 – Mục 2: Việt Nam và Biển Đông</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #0a1628;
+    --ocean:   #0d2b55;
+    --wave:    #1565a8;
+    --sky:     #2196f3;
+    --foam:    #e3f2fd;
+    --gold:    #f5b342;
+    --red:     #c62828;
+    --white:   #f8fafc;
+    --gray:    #607d8b;
+    --light:   #eceff1;
+    --radius:  12px;
+    --shadow:  0 8px 32px rgba(10,22,40,.25);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background: var(--navy);
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  /* ===== ANIMATED OCEAN BACKGROUND ===== */
+  .ocean-bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: linear-gradient(160deg, #0a1628 0%, #0d2b55 50%, #0a3d62 100%);
+    overflow: hidden;
+  }
+  .ocean-bg::before {
+    content: '';
+    position: absolute; bottom: -20%; left: -50%;
+    width: 200%; height: 60%;
+    background: radial-gradient(ellipse at center, rgba(21,101,168,.25) 0%, transparent 70%);
+    animation: waveDrift 8s ease-in-out infinite alternate;
+  }
+  .ocean-bg::after {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 40%; height: 40%;
+    background: radial-gradient(circle at 80% 20%, rgba(245,179,66,.07) 0%, transparent 60%);
+  }
+  @keyframes waveDrift {
+    from { transform: translateX(0) scaleY(1); }
+    to   { transform: translateX(4%) scaleY(1.05); }
+  }
+
+  /* Stars */
+  .stars {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 8%,  rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 25%, rgba(255,255,255,.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 40% 5%,  rgba(255,255,255,.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 12%, rgba(255,255,255,.3) 0%, transparent 100%);
+  }
+
+  /* ===== LAYOUT ===== */
+  .page-wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+
+  /* ===== HERO ===== */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 60px 20px 40px;
+    position: relative;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(245,179,66,.15);
+    border: 1px solid rgba(245,179,66,.4);
+    color: var(--gold);
+    font-size: .78rem; font-weight: 600; letter-spacing: .12em;
+    padding: 6px 18px; border-radius: 50px;
+    margin-bottom: 24px;
+    animation: fadeDown .6s ease both;
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 6vw, 4.2rem);
+    line-height: 1.15;
+    background: linear-gradient(135deg, #ffffff 30%, var(--gold) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: fadeDown .7s .1s ease both;
+    max-width: 800px;
+  }
+  .hero-sub {
+    font-size: 1.05rem; color: rgba(255,255,255,.65);
+    margin: 16px 0 40px;
+    animation: fadeDown .7s .2s ease both;
+    max-width: 620px;
+  }
+  .hero-scroll {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: rgba(255,255,255,.4); font-size: .75rem; letter-spacing: .1em;
+    animation: fadeIn 1.5s 1s ease both;
+  }
+  .hero-scroll span { width: 1px; height: 40px; background: rgba(255,255,255,.2); animation: scrollLine 1.5s ease-in-out infinite; }
+  @keyframes scrollLine { 0%,100%{transform:scaleY(0.5) translateY(-50%)} 50%{transform:scaleY(1) translateY(0)} }
+
+  /* Nav dots */
+  .nav-dots {
+    position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 12px; z-index: 100;
+  }
+  .nav-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,.25); cursor: pointer;
+    transition: all .3s;
+    position: relative;
+  }
+  .nav-dot.active { background: var(--gold); transform: scale(1.4); }
+  .nav-dot:hover { background: rgba(255,255,255,.6); }
+  .nav-dot[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+    background: rgba(10,22,40,.9); color: #fff;
+    font-size: .72rem; white-space: nowrap; padding: 4px 10px; border-radius: 4px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .nav-dot:hover[data-tooltip]::before { opacity: 1; }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    padding: 80px 0;
+    opacity: 0; transform: translateY(40px);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .section.visible { opacity: 1; transform: translateY(0); }
+
+  .section-label {
+    font-size: .75rem; font-weight: 700; letter-spacing: .15em;
+    color: var(--gold); text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    color: var(--white);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .section-divider {
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+    margin: 14px 0 32px; border-radius: 2px;
+  }
+
+  /* ===== CARDS ===== */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 24px; }
+
+  .card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--radius);
+    padding: 28px;
+    backdrop-filter: blur(12px);
+    transition: transform .35s cubic-bezier(.23,1,.32,1), box-shadow .35s, border-color .35s;
+    cursor: default;
+  }
+  .card:hover {
+    transform: translateY(-6px) scale(1.015);
+    box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    border-color: rgba(245,179,66,.35);
+  }
+  .card-icon { font-size: 2rem; margin-bottom: 14px; }
+  .card h3 { font-size: 1.1rem; font-weight: 700; color: var(--gold); margin-bottom: 10px; }
+  .card p, .card li { font-size: .9rem; color: rgba(255,255,255,.75); line-height: 1.7; }
+  .card ul { list-style: none; padding: 0; }
+  .card ul li::before { content: "▸ "; color: var(--gold); }
+
+  /* ===== TIMELINE ===== */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, var(--gold), rgba(245,179,66,.1));
+  }
+  .tl-item {
+    position: relative; margin-bottom: 36px;
+    opacity: 0; transform: translateX(-20px);
+    transition: opacity .6s, transform .6s;
+  }
+  .tl-item.visible { opacity: 1; transform: translateX(0); }
+  .tl-dot {
+    position: absolute; left: -38px; top: 4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--gold); border: 2px solid var(--navy);
+    box-shadow: 0 0 0 4px rgba(245,179,66,.2);
+  }
+  .tl-year { font-size: .8rem; font-weight: 700; color: var(--gold); letter-spacing: .08em; }
+  .tl-title { font-size: 1rem; font-weight: 700; color: var(--white); margin: 4px 0 6px; }
+  .tl-text { font-size: .88rem; color: rgba(255,255,255,.7); line-height: 1.7; }
+
+  /* ===== MAP SECTION ===== */
+  #map-section { padding: 80px 0; }
+  .map-container {
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.15);
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    position: relative;
+  }
+  #map { height: 560px; width: 100%; }
+  .map-legend {
+    position: absolute; bottom: 16px; left: 16px; z-index: 900;
+    background: rgba(10,22,40,.88);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px; padding: 14px 18px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+  .map-legend h4 { font-size: .8rem; color: var(--gold); margin-bottom: 8px; letter-spacing: .06em; font-weight: 700; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: rgba(255,255,255,.8); margin: 5px 0; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-line { width: 20px; height: 3px; flex-shrink: 0; border-radius: 2px; }
+
+  .map-controls {
+    display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .map-btn {
+    padding: 8px 18px; border-radius: 50px;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.07);
+    color: rgba(255,255,255,.8); font-size: .82rem; font-weight: 600;
+    cursor: pointer; transition: all .25s;
+    font-family: inherit;
+  }
+  .map-btn:hover, .map-btn.active {
+    background: var(--gold); border-color: var(--gold); color: var(--navy);
+  }
+
+  /* ===== IMAGE GALLERY ===== */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+  .gallery-item {
+    border-radius: var(--radius); overflow: hidden;
+    position: relative; cursor: pointer;
+    aspect-ratio: 4/3;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    transition: transform .4s cubic-bezier(.23,1,.32,1), box-shadow .4s;
+  }
+  .gallery-item:hover { transform: scale(1.04); box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+  .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s; }
+  .gallery-item:hover img { transform: scale(1.08); }
+  .gallery-caption {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(10,22,40,.9));
+    padding: 32px 14px 12px;
+    font-size: .78rem; color: rgba(255,255,255,.9); font-weight: 500;
+  }
+  .gallery-download {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(245,179,66,.9); color: var(--navy);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: .72rem; font-weight: 700; text-decoration: none;
+    opacity: 0; transition: opacity .3s;
+  }
+  .gallery-item:hover .gallery-download { opacity: 1; }
+
+  /* Image link list */
+  .img-links { margin-top: 24px; }
+  .img-links h4 { font-size: .9rem; color: var(--gold); margin-bottom: 12px; font-weight: 700; }
+  .img-link-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+    font-size: .82rem;
+  }
+  .img-link-item a { color: var(--sky); word-break: break-all; transition: color .2s; }
+  .img-link-item a:hover { color: var(--gold); }
+  .img-link-num { color: var(--gold); font-weight: 700; flex-shrink: 0; min-width: 22px; }
+
+  /* ===== HIGHLIGHT BOX ===== */
+  .highlight-box {
+    background: linear-gradient(135deg, rgba(245,179,66,.12), rgba(21,101,168,.15));
+    border: 1px solid rgba(245,179,66,.3);
+    border-left: 4px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 28px 0;
+  }
+  .highlight-box p { font-size: .95rem; color: rgba(255,255,255,.85); line-height: 1.8; }
+  .highlight-box strong { color: var(--gold); }
+
+  /* ===== INFO TABLE ===== */
+  .info-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .info-table th {
+    background: rgba(245,179,66,.15); color: var(--gold);
+    font-size: .82rem; letter-spacing: .06em; text-transform: uppercase;
+    padding: 12px 16px; text-align: left;
+    border-bottom: 2px solid rgba(245,179,66,.3);
+  }
+  .info-table td {
+    padding: 12px 16px; font-size: .88rem; color: rgba(255,255,255,.8);
+    border-bottom: 1px solid rgba(255,255,255,.06); vertical-align: top;
+  }
+  .info-table tr:hover td { background: rgba(255,255,255,.04); }
+
+  /* ===== PARALLAX NUMBER ===== */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin: 32px 0; }
+  .stat-card {
+    text-align: center; padding: 28px 20px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--radius);
+    transition: transform .3s, border-color .3s;
+  }
+  .stat-card:hover { transform: translateY(-4px); border-color: rgba(245,179,66,.4); }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 2.4rem; color: var(--gold); font-weight: 900; }
+  .stat-label { font-size: .8rem; color: rgba(255,255,255,.55); margin-top: 6px; line-height: 1.5; }
+
+  /* ===== ACCORDION ===== */
+  .accordion { margin-top: 20px; }
+  .acc-item {
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--radius); margin-bottom: 10px;
+    overflow: hidden; transition: border-color .3s;
+  }
+  .acc-item.open { border-color: rgba(245,179,66,.4); }
+  .acc-header {
+    width: 100%; text-align: left;
+    background: rgba(255,255,255,.05); border: none; cursor: pointer;
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    font-family: inherit; font-size: .95rem; font-weight: 600; color: var(--white);
+    transition: background .25s;
+  }
+  .acc-header:hover { background: rgba(255,255,255,.08); }
+  .acc-item.open .acc-header { color: var(--gold); }
+  .acc-arrow { font-size: 1.1rem; transition: transform .3s; }
+  .acc-item.open .acc-arrow { transform: rotate(180deg); }
+  .acc-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height .5s cubic-bezier(.4,0,.2,1), padding .3s;
+    background: rgba(255,255,255,.02);
+  }
+  .acc-item.open .acc-body { max-height: 600px; padding: 0 20px 20px; }
+  .acc-body p, .acc-body li { font-size: .88rem; color: rgba(255,255,255,.75); line-height: 1.8; }
+  .acc-body ul { list-style: none; padding: 0; }
+  .acc-body ul li::before { content: "✦ "; color: var(--gold); font-size: .7rem; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    text-align: center; padding: 40px 20px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    font-size: .8rem; color: rgba(255,255,255,.35);
+  }
+  footer span { color: var(--gold); }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+
+  /* ===== PROGRESS BAR ===== */
+  #progress { position:fixed; top:0; left:0; height:3px; background:linear-gradient(90deg,var(--gold),var(--sky)); z-index:999; transition:width .1s; }
+
+  /* ===== RESPONSIVE ===== */
+  @media(max-width:600px) {
+    .nav-dots { display:none; }
+    .hero h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="ocean-bg"></div>
+<div class="stars"></div>
+
+<!-- NAV DOTS -->
+<nav class="nav-dots" id="navDots">
+  <div class="nav-dot active" data-section="0" data-tooltip="Giới thiệu"></div>
+  <div class="nav-dot" data-section="1" data-tooltip="Vị trí chiến lược"></div>
+  <div class="nav-dot" data-section="2" data-tooltip="Chủ quyền VN"></div>
+  <div class="nav-dot" data-section="3" data-tooltip="Bản đồ"></div>
+  <div class="nav-dot" data-section="4" data-tooltip="Tranh chấp"></div>
+  <div class="nav-dot" data-section="5" data-tooltip="Hình ảnh"></div>
+  <div class="nav-dot" data-section="6" data-tooltip="Lịch sử"></div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section id="sec0" class="hero">
+  <div class="hero-badge">Lịch Sử 11 · Bài 13 · Mục 2</div>
+  <h1>Việt Nam và<br>Biển Đông</h1>
+  <p class="hero-sub">Vị trí chiến lược, chủ quyền lịch sử và các vấn đề hiện đại của Biển Đông trong quan hệ Việt Nam với thế giới</p>
+  <div class="hero-scroll">CUỘN XUỐNG <span></span></div>
+</section>
+
+<!-- ===== SECTION 1: TỔNG QUAN ===== -->
+<section id="sec1" class="section">
+  <div class="page-wrap">
+    <div class="section-label">Mục 2.1</div>
+    <h2 class="section-title">Vị trí và tầm quan trọng<br>chiến lược của Biển Đông</h2>
+    <div class="section-divider"></div>
+
+    <div class="highlight-box">
+      <p>Biển Đông là <strong>một trong những vùng biển lớn nhất thế giới</strong>, có diện tích khoảng <strong>3,5 triệu km²</strong>. Đây là nơi giao thoa của nhiều nền kinh tế lớn và là tuyến đường hàng hải huyết mạch nối Thái Bình Dương với Ấn Độ Dương.</p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-num">3,5 tr</div>
+        <div class="stat-label">km² diện tích Biển Đông</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">3.260</div>
+        <div class="stat-label">km đường bờ biển Việt Nam</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">≥50%</div>
+        <div class="stat-label">hàng hải thế giới qua Biển Đông</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">1 tr</div>
+        <div class="stat-label">km² vùng đặc quyền kinh tế VN</div>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🌏</div>
+        <h3>Vị trí địa lý</h3>
+        <ul>
+          <li>Nằm ở Đông Nam Á, bao quanh bởi 9 quốc gia</li>
+          <li>Kết nối Thái Bình Dương – Ấn Độ Dương</li>
+          <li>Tiếp giáp eo biển Malacca – tuyến đường siêu huyết mạch</li>
+          <li>Trung tâm kinh tế – chính trị Châu Á – Thái Bình Dương</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚓</div>
+        <h3>Giao thông hàng hải</h3>
+        <ul>
+          <li>Hơn 90.000 lượt tàu/năm qua lại</li>
+          <li>Trị giá hàng hoá lên tới 5.000 tỷ USD/năm</li>
+          <li>Là "con đường tơ lụa trên biển" của thế giới hiện đại</li>
+          <li>Kết nối Đông Á với Trung Đông và châu Âu</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛢️</div>
+        <h3>Tài nguyên thiên nhiên</h3>
+        <ul>
+          <li>Trữ lượng dầu khí ước tính 125 tỷ thùng</li>
+          <li>Nguồn hải sản phong phú – đa dạng sinh học cao</li>
+          <li>Khoáng sản đáy biển: mangan, cobalt, nikel</li>
+          <li>Băng cháy (methane hydrate) – năng lượng tương lai</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>Ý nghĩa quốc phòng</h3>
+        <ul>
+          <li>Vùng đệm an ninh chiến lược của Việt Nam</li>
+          <li>Nơi nhiều cường quốc hiện diện quân sự</li>
+          <li>Kiểm soát biển = kiểm soát tuyến thương mại</li>
+          <li>Gắn liền với an ninh khu vực Đông Nam Á</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: CHỦ QUYỀN VIỆT NAM ===== -->
+<section id="sec2" class="section">
+  <div class="page-wrap">
+    <div class="section-label">Mục 2.2</div>
+    <h2 class="section-title">Chủ quyền của Việt Nam<br>trên Biển Đông</h2>
+    <div class="section-divider"></div>
+
+    <div class="highlight-box">
+      <p>Việt Nam có <strong>vùng biển rộng lớn</strong> bao gồm nội thủy, lãnh hải (12 hải lý), vùng tiếp giáp (24 hải lý), vùng đặc quyền kinh tế (200 hải lý) và thềm lục địa. Hai quần đảo <strong>Hoàng Sa</strong> và <strong>Trường Sa</strong> là lãnh thổ thiêng liêng của Tổ quốc Việt Nam.</p>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🏝️</div>
+        <h3>Quần đảo Hoàng Sa</h3>
+        <ul>
+          <li>Khoảng 30 đảo, đá, bãi cạn nhỏ</li>
+          <li>Cách bờ biển Đà Nẵng ~170 hải lý</li>
+          <li>Diện tích nổi ~10 km²</li>
+          <li>VN quản lý đến 1974; TQ chiếm đóng trái phép từ 1974</li>
+          <li>VN kiên quyết đòi lại chủ quyền bằng biện pháp hoà bình</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌊</div>
+        <h3>Quần đảo Trường Sa</h3>
+        <ul>
+          <li>Hơn 100 thực thể địa lý (đảo, đá, bãi ngầm)</li>
+          <li>Cách bờ biển Khánh Hoà ~250 hải lý</li>
+          <li>VN kiểm soát 21 thực thể, có huyện Trường Sa (Khánh Hoà)</li>
+          <li>Nhiều nước cùng tranh chấp: TQ, Philippines, Malaysia, Brunei, Đài Loan</li>
+          <li>VN có cơ sở pháp lý lịch sử vững chắc nhất</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="color:var(--gold);margin:32px 0 16px;font-size:1.15rem;">📜 Các vùng biển Việt Nam theo UNCLOS 1982</h3>
+
+    <table class="info-table">
+      <thead>
+        <tr>
+          <th>Vùng biển</th>
+          <th>Phạm vi</th>
+          <th>Quyền của Việt Nam</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Nội thủy</td><td>Bên trong đường cơ sở</td><td>Chủ quyền hoàn toàn, tuyệt đối</td></tr>
+        <tr><td>Lãnh hải</td><td>12 hải lý từ đường cơ sở</td><td>Chủ quyền đầy đủ</td></tr>
+        <tr><td>Vùng tiếp giáp</td><td>24 hải lý</td><td>Kiểm soát an ninh, hải quan</td></tr>
+        <tr><td>Vùng đặc quyền kinh tế</td><td>200 hải lý</td><td>Khai thác tài nguyên thiên nhiên</td></tr>
+        <tr><td>Thềm lục địa</td><td>200 – 350 hải lý</td><td>Khai thác tài nguyên đáy biển</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: BẢN ĐỒ TƯƠNG TÁC ===== -->
+<section id="sec3" id="map-section">
+  <div class="page-wrap">
+    <div class="section-label">Bản đồ tương tác</div>
+    <h2 class="section-title">Bản đồ Biển Đông<br>& Chủ quyền Việt Nam</h2>
+    <div class="section-divider"></div>
+    <p style="color:rgba(255,255,255,.6);margin-bottom:20px;font-size:.9rem;">Dùng chuột để zoom, kéo để di chuyển. Nhấn các nút bên dưới để đổi lớp bản đồ.</p>
+
+    <div class="map-controls">
+      <button class="map-btn active" id="btnStreet">🗺️ Bản đồ đường</button>
+      <button class="map-btn" id="btnSatellite">🛰️ Vệ tinh</button>
+      <button class="map-btn" id="btnTopo">🏔️ Địa hình</button>
+      <button class="map-btn" id="btnReset">🔄 Reset View</button>
+    </div>
+
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-legend">
+        <h4>CHÚ GIẢI</h4>
+        <div class="legend-item"><div class="legend-dot" style="background:#f44336;"></div> Hoàng Sa (VN)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2196f3;"></div> Trường Sa (VN)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4caf50;"></div> Đảo lớn Việt Nam</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff9800;"></div> Thành phố ven biển</div>
+        <div class="legend-line" style="background:rgba(255,165,0,.7);"></div> Đường cơ sở VN
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: TRANH CHẤP & PHÁP LÝ ===== -->
+<section id="sec4" class="section">
+  <div class="page-wrap">
+    <div class="section-label">Mục 2.3</div>
+    <h2 class="section-title">Tình hình tranh chấp &<br>Lập trường của Việt Nam</h2>
+    <div class="section-divider"></div>
+
+    <div class="accordion">
+      <div class="acc-item">
+        <button class="acc-header" onclick="toggleAcc(this)">
+          <span>🔴 Các vấn đề tranh chấp chính trên Biển Đông</span>
+          <span class="acc-arrow">▼</span>
+        </button>
+        <div class="acc-body">
+          <ul>
+            <li>Tranh chấp chủ quyền quần đảo Hoàng Sa và Trường Sa giữa nhiều quốc gia</li>
+            <li>Trung Quốc đưa ra "Đường chín đoạn" (đường lưỡi bò) chiếm tới 80% Biển Đông – không có cơ sở pháp lý quốc tế</li>
+            <li>Tòa Trọng tài Thường trực (PCA) năm 2016 bác bỏ yêu sách của Trung Quốc</li>
+            <li>Trung Quốc xây dựng trái phép các đảo nhân tạo tại Trường Sa từ 2013–2016</li>
+            <li>Tranh chấp ranh giới biển giữa các nước trong khu vực</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-header" onclick="toggleAcc(this)">
+          <span>🟡 Lập trường nhất quán của Việt Nam</span>
+          <span class="acc-arrow">▼</span>
+        </button>
+        <div class="acc-body">
+          <ul>
+            <li>Khẳng định chủ quyền không thể tranh cãi đối với Hoàng Sa và Trường Sa dựa trên bằng chứng lịch sử và pháp lý</li>
+            <li>Tuân thủ và bảo vệ Công ước UNCLOS 1982</li>
+            <li>Giải quyết tranh chấp bằng biện pháp hoà bình, không dùng vũ lực</li>
+            <li>Ủng hộ đàm phán đa phương, xây dựng Bộ Quy tắc ứng xử (COC)</li>
+            <li>Tích cực hợp tác quốc tế trong khuôn khổ ASEAN và Liên Hợp Quốc</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-header" onclick="toggleAcc(this)">
+          <span>🟢 Cơ sở pháp lý quốc tế của Việt Nam</span>
+          <span class="acc-arrow">▼</span>
+        </button>
+        <div class="acc-body">
+          <ul>
+            <li><strong>UNCLOS 1982</strong>: Công ước Liên Hợp Quốc về Luật Biển – nền tảng pháp lý quốc tế</li>
+            <li><strong>DOC (2002)</strong>: Tuyên bố về ứng xử của các bên ở Biển Đông</li>
+            <li>Bản đồ lịch sử, văn bản triều đình từ thế kỷ XVII, XVIII chứng minh VN quản lý Hoàng Sa, Trường Sa</li>
+            <li>Tư liệu nước ngoài (Pháp, Anh, Nhật) công nhận chủ quyền của Việt Nam</li>
+            <li>Quyết định của PCA 2016 phủ nhận yêu sách "đường chín đoạn"</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-header" onclick="toggleAcc(this)">
+          <span>🔵 Biển Đông trong chính sách đối ngoại Việt Nam</span>
+          <span class="acc-arrow">▼</span>
+        </button>
+        <div class="acc-body">
+          <ul>
+            <li>Biển Đông là nội dung trọng tâm trong chiến lược biển Việt Nam đến 2030</li>
+            <li>Phát triển kinh tế biển, bảo vệ chủ quyền song hành</li>
+            <li>Tăng cường quan hệ đối tác chiến lược với các nước để tạo đối trọng</li>
+            <li>Kiên trì con đường ngoại giao "Cây tre" – linh hoạt nhưng vững chắc về nguyên tắc</li>
+            <li>Đóng góp tích cực vào duy trì hoà bình, ổn định khu vực</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: HÌNH ẢNH ===== -->
+<section id="sec5" class="section">
+  <div class="page-wrap">
+    <div class="section-label">Tư liệu ảnh</div>
+    <h2 class="section-title">Hình ảnh tư liệu<br>Việt Nam & Biển Đông</h2>
+    <div class="section-divider"></div>
+    <p style="color:rgba(255,255,255,.6);font-size:.88rem;margin-bottom:20px;">Nhấn vào ảnh để xem lớn hơn · Nút vàng để tải ảnh về máy</p>
+
+    <div class="gallery">
+      <!-- Ảnh 1 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Spratly_Islands.jpg/1280px-Spratly_Islands.jpg')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Spratly_Islands.jpg/1280px-Spratly_Islands.jpg"
+             alt="Quần đảo Trường Sa" loading="lazy">
+        <div class="gallery-caption">Quần đảo Trường Sa nhìn từ vệ tinh</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Spratly_Islands.jpg/1280px-Spratly_Islands.jpg" download target="_blank">⬇ Tải</a>
+      </div>
+
+      <!-- Ảnh 2 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paracel_Islands_NASA.jpg/1280px-Paracel_Islands_NASA.jpg')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paracel_Islands_NASA.jpg/1280px-Paracel_Islands_NASA.jpg"
+             alt="Quần đảo Hoàng Sa" loading="lazy">
+        <div class="gallery-caption">Quần đảo Hoàng Sa – ảnh vệ tinh NASA</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paracel_Islands_NASA.jpg/1280px-Paracel_Islands_NASA.jpg" download target="_blank">⬇ Tải</a>
+      </div>
+
+      <!-- Ảnh 3 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/South_China_Sea_vector.svg/1200px-South_China_Sea_vector.svg.png')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/South_China_Sea_vector.svg/1200px-South_China_Sea_vector.svg.png"
+             alt="Bản đồ Biển Đông" loading="lazy">
+        <div class="gallery-caption">Bản đồ Biển Đông và các vùng tranh chấp</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/South_China_Sea_vector.svg/1200px-South_China_Sea_vector.svg.png" download target="_blank">⬇ Tải</a>
+      </div>
+
+      <!-- Ảnh 4 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Lighthouse_Spratly_Islands.jpg/1280px-Lighthouse_Spratly_Islands.jpg')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Lighthouse_Spratly_Islands.jpg/1280px-Lighthouse_Spratly_Islands.jpg"
+             alt="Đảo Trường Sa Lớn" loading="lazy">
+        <div class="gallery-caption">Ngọn hải đăng tại Trường Sa Lớn</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Lighthouse_Spratly_Islands.jpg/1280px-Lighthouse_Spratly_Islands.jpg" download target="_blank">⬇ Tải</a>
+      </div>
+
+      <!-- Ảnh 5 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Hainan_Island_China_STS059-219-12.jpg/1280px-Hainan_Island_China_STS059-219-12.jpg')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Hainan_Island_China_STS059-219-12.jpg/1280px-Hainan_Island_China_STS059-219-12.jpg"
+             alt="Vùng Biển Đông" loading="lazy">
+        <div class="gallery-caption">Cảnh Biển Đông từ trên cao – tàu thuyền qua lại</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Hainan_Island_China_STS059-219-12.jpg/1280px-Hainan_Island_China_STS059-219-12.jpg" download target="_blank">⬇ Tải</a>
+      </div>
+
+      <!-- Ảnh 6 -->
+      <div class="gallery-item" onclick="openImg('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/UNCLOS_zones-en.svg/1200px-UNCLOS_zones-en.svg.png')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/UNCLOS_zones-en.svg/1200px-UNCLOS_zones-en.svg.png"
+             alt="UNCLOS vùng biển" loading="lazy">
+        <div class="gallery-caption">Sơ đồ các vùng biển theo UNCLOS 1982</div>
+        <a class="gallery-download" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/UNCLOS_zones-en.svg/1200px-UNCLOS_zones-en.svg.png" download target="_blank">⬇ Tải</a>
+      </div>
+    </div>
+
+    <!-- LINK ẢNH ĐỂ TẢI -->
+    <div class="img-links" style="margin-top:36px;">
+      <h4>📎 DANH SÁCH LINK ẢNH ĐỂ TẢI VỀ MÁY</h4>
+      <div class="img-link-item"><span class="img-link-num">1</span><div><strong>Trường Sa – ảnh vệ tinh:</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Spratly_Islands.jpg/1280px-Spratly_Islands.jpg" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Spratly_Islands.jpg/1280px-Spratly_Islands.jpg</a></div></div>
+      <div class="img-link-item"><span class="img-link-num">2</span><div><strong>Hoàng Sa – ảnh NASA:</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paracel_Islands_NASA.jpg/1280px-Paracel_Islands_NASA.jpg" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paracel_Islands_NASA.jpg/1280px-Paracel_Islands_NASA.jpg</a></div></div>
+      <div class="img-link-item"><span class="img-link-num">3</span><div><strong>Bản đồ Biển Đông (vector):</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/South_China_Sea_vector.svg/1200px-South_China_Sea_vector.svg.png" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/South_China_Sea_vector.svg/1200px-South_China_Sea_vector.svg.png</a></div></div>
+      <div class="img-link-item"><span class="img-link-num">4</span><div><strong>Ngọn hải đăng Trường Sa Lớn:</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Lighthouse_Spratly_Islands.jpg/1280px-Lighthouse_Spratly_Islands.jpg" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Lighthouse_Spratly_Islands.jpg/1280px-Lighthouse_Spratly_Islands.jpg</a></div></div>
+      <div class="img-link-item"><span class="img-link-num">5</span><div><strong>Vùng biển Đông Bắc (ảnh vũ trụ):</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Hainan_Island_China_STS059-219-12.jpg/1280px-Hainan_Island_China_STS059-219-12.jpg" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Hainan_Island_China_STS059-219-12.jpg/1280px-Hainan_Island_China_STS059-219-12.jpg</a></div></div>
+      <div class="img-link-item"><span class="img-link-num">6</span><div><strong>Sơ đồ UNCLOS 1982:</strong><br><a href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/UNCLOS_zones-en.svg/1200px-UNCLOS_zones-en.svg.png" target="_blank">https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/UNCLOS_zones-en.svg/1200px-UNCLOS_zones-en.svg.png</a></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: DÒNG THỜI GIAN ===== -->
+<section id="sec6" class="section">
+  <div class="page-wrap">
+    <div class="section-label">Mục 2.4</div>
+    <h2 class="section-title">Dòng thời gian lịch sử<br>chủ quyền Biển Đông</h2>
+    <div class="section-divider"></div>
+
+    <div class="timeline" id="timeline">
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">Thế kỷ XVII</div>
+        <div class="tl-title">Chúa Nguyễn lập đội Hoàng Sa</div>
+        <div class="tl-text">Chúa Nguyễn tổ chức Đội Hoàng Sa và Bắc Hải để quản lý, khai thác các quần đảo Hoàng Sa và Trường Sa. Đây là bằng chứng lịch sử sớm nhất về quản lý Nhà nước Việt Nam tại Biển Đông.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">1816</div>
+        <div class="tl-title">Vua Gia Long xác lập chủ quyền</div>
+        <div class="tl-text">Vua Gia Long chính thức tuyên bố chủ quyền của Việt Nam đối với quần đảo Hoàng Sa, cắm cờ và dựng bia chủ quyền. Năm 1836, vua Minh Mạng tiếp tục đo đạc, vẽ bản đồ Hoàng Sa.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">1951</div>
+        <div class="tl-title">Hội nghị San Francisco</div>
+        <div class="tl-text">Tại Hội nghị San Francisco, Thủ tướng Trần Văn Hữu (đại diện Chính phủ Quốc gia Việt Nam) tuyên bố Hoàng Sa và Trường Sa thuộc Việt Nam, không có nước nào phản đối.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">1974</div>
+        <div class="tl-title">Trung Quốc chiếm Hoàng Sa</div>
+        <div class="tl-text">Ngày 19/01/1974, Trung Quốc dùng vũ lực đánh chiếm toàn bộ quần đảo Hoàng Sa đang do Việt Nam Cộng hoà quản lý. Việt Nam kiên quyết phản đối và yêu cầu trả lại.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">1982</div>
+        <div class="tl-title">Công ước UNCLOS được ký kết</div>
+        <div class="tl-text">Công ước Liên Hợp Quốc về Luật Biển (UNCLOS) được ký, tạo cơ sở pháp lý quốc tế. Việt Nam phê chuẩn năm 1994, áp dụng để xác định vùng đặc quyền kinh tế và thềm lục địa.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">1988</div>
+        <div class="tl-title">Sự kiện Gạc Ma</div>
+        <div class="tl-text">Ngày 14/03/1988, Trung Quốc tấn công các tàu Hải quân Việt Nam tại bãi đá Gạc Ma (quần đảo Trường Sa), 64 chiến sĩ Hải quân Việt Nam hi sinh anh dũng.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">2002</div>
+        <div class="tl-title">Ký kết DOC</div>
+        <div class="tl-text">ASEAN và Trung Quốc ký Tuyên bố về ứng xử của các bên ở Biển Đông (DOC), cam kết giải quyết tranh chấp bằng biện pháp hoà bình, không làm phức tạp thêm tình hình.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">2016</div>
+        <div class="tl-title">Phán quyết PCA bác yêu sách TQ</div>
+        <div class="tl-text">Tòa Trọng tài Thường trực (PCA) ra phán quyết bác bỏ hoàn toàn "Đường chín đoạn" của Trung Quốc, khẳng định UNCLOS là cơ sở duy nhất để xác định quyền biển. Đây là thắng lợi pháp lý quan trọng.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Lịch Sử 11 – Kết Nối Tri Thức · <span>Bài 13: Việt Nam và Biển Đông</span> · Mục 2</p>
+  <p style="margin-top:8px;">Bản đồ sử dụng <span>OpenStreetMap</span> & <span>Esri Satellite</span> · Dữ liệu mở Wikimedia</p>
+</footer>
+
+<!-- MODAL ẢNH -->
+<div id="imgModal" onclick="closeModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;cursor:zoom-out;display:none;align-items:center;justify-content:center;">
+  <img id="modalImg" src="" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.8);transform:scale(0.9);transition:transform .3s;">
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ===== PROGRESS BAR =====
+window.addEventListener('scroll', () => {
+  const el = document.getElementById('progress');
+  const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+  el.style.width = pct + '%';
+});
+
+// ===== SCROLL REVEAL =====
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+// Timeline items
+const tlObs = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 100);
+    }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll('.tl-item').forEach(t => tlObs.observe(t));
+
+// ===== NAV DOTS =====
+const sections = ['sec0','sec1','sec2','sec3','sec4','sec5','sec6'];
+const dots = document.querySelectorAll('.nav-dot');
+const navObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const idx = sections.indexOf(e.target.id);
+      dots.forEach(d => d.classList.remove('active'));
+      if (idx >= 0) dots[idx].classList.add('active');
+    }
+  });
+}, { threshold: 0.4 });
+sections.forEach(id => { const el = document.getElementById(id); if (el) navObs.observe(el); });
+
+dots.forEach((d, i) => {
+  d.addEventListener('click', () => {
+    document.getElementById(sections[i])?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// ===== ACCORDION =====
+function toggleAcc(btn) {
+  const item = btn.closest('.acc-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.acc-item').forEach(i => i.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+// ===== IMAGE MODAL =====
+function openImg(src) {
+  const modal = document.getElementById('imgModal');
+  const img = document.getElementById('modalImg');
+  modal.style.display = 'flex';
+  img.src = src;
+  setTimeout(() => { img.style.transform = 'scale(1)'; }, 50);
+}
+function closeModal() {
+  const modal = document.getElementById('imgModal');
+  const img = document.getElementById('modalImg');
+  img.style.transform = 'scale(0.9)';
+  setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ===== MAP =====
+const defaultCenter = [14.0, 113.0];
+const defaultZoom = 5;
+
+const map = L.map('map', {
+  center: defaultCenter, zoom: defaultZoom,
+  zoomControl: true,
+  minZoom: 3, maxZoom: 17
+});
+
+// Tile layers
+const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 19
+});
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19
+});
+const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenTopoMap contributors', maxZoom: 17
+});
+
+streetLayer.addTo(map);
+let currentLayer = streetLayer;
+
+// Map button controls
+document.getElementById('btnStreet').addEventListener('click', () => switchLayer(streetLayer, 'btnStreet'));
+document.getElementById('btnSatellite').addEventListener('click', () => switchLayer(satelliteLayer, 'btnSatellite'));
+document.getElementById('btnTopo').addEventListener('click', () => switchLayer(topoLayer, 'btnTopo'));
+document.getElementById('btnReset').addEventListener('click', () => map.flyTo(defaultCenter, defaultZoom, {duration: 1.2}));
+
+function switchLayer(layer, btnId) {
+  map.removeLayer(currentLayer);
+  layer.addTo(map);
+  currentLayer = layer;
+  document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(btnId)?.classList.add('active');
+}
+
+// Custom icons
+const createIcon = (color, size = 10) => L.divIcon({
+  className: '',
+  html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5);"></div>`,
+  iconSize: [size, size], iconAnchor: [size/2, size/2]
+});
+
+const pulseIcon = (color) => L.divIcon({
+  className: '',
+  html: `<div style="position:relative;width:16px;height:16px;">
+    <div style="position:absolute;width:16px;height:16px;background:${color};border-radius:50%;opacity:.3;animation:pulse 2s infinite;"></div>
+    <div style="position:absolute;left:3px;top:3px;width:10px;height:10px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 0 6px ${color};"></div>
+  </div>
+  <style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.8);opacity:.1}}</style>`,
+  iconSize: [16, 16], iconAnchor: [8, 8]
+});
+
+// === MARKERS ===
+// Hoàng Sa
+const hoangSaMarkers = [
+  { lat: 16.50, lng: 111.90, name: "Đảo Phú Lâm (Wood Island) – Hoàng Sa", note: "Đảo lớn nhất Hoàng Sa, hiện bị TQ chiếm đóng trái phép từ 1974" },
+  { lat: 16.84, lng: 112.34, name: "Đảo Tri Tôn – Hoàng Sa", note: "Một trong các thực thể thuộc quần đảo Hoàng Sa" },
+  { lat: 16.96, lng: 111.58, name: "Đảo Quang Hòa – Hoàng Sa", note: "Thuộc nhóm Lưỡi Liềm, quần đảo Hoàng Sa" },
+];
+hoangSaMarkers.forEach(m => {
+  L.marker([m.lat, m.lng], { icon: pulseIcon('#f44336') })
+    .addTo(map)
+    .bindPopup(`<b style="color:#c62828">🔴 ${m.name}</b><br><small>${m.note}</small>`);
+});
+
+// Trường Sa
+const truongSaMarkers = [
+  { lat: 8.64,  lng: 111.92, name: "Đảo Trường Sa Lớn – Huyện lỵ Trường Sa", note: "Trung tâm hành chính của huyện Trường Sa, tỉnh Khánh Hoà" },
+  { lat: 9.88,  lng: 114.35, name: "Đảo Song Tử Tây – Trường Sa", note: "Điểm cực bắc của quần đảo Trường Sa do VN kiểm soát" },
+  { lat: 9.55,  lng: 113.87, name: "Đảo Sơn Ca – Trường Sa", note: "Đảo VN đang đóng giữ tại Trường Sa" },
+  { lat: 10.35, lng: 114.18, name: "Đảo Song Tử Đông – Trường Sa", note: "Philippines chiếm đóng, VN tuyên bố chủ quyền" },
+  { lat: 7.86,  lng: 113.93, name: "Đảo An Bang – Trường Sa", note: "Đảo VN đóng giữ, phía nam Trường Sa" },
+];
+truongSaMarkers.forEach(m => {
+  L.marker([m.lat, m.lng], { icon: pulseIcon('#2196f3') })
+    .addTo(map)
+    .bindPopup(`<b style="color:#1565a0">🔵 ${m.name}</b><br><small>${m.note}</small>`);
+});
+
+// Thành phố ven biển
+const cities = [
+  { lat: 16.07, lng: 108.22, name: "Đà Nẵng", note: "Thành phố biển lớn nhất miền Trung" },
+  { lat: 10.82, lng: 106.63, name: "TP. Hồ Chí Minh", note: "Trung tâm kinh tế – cửa ngõ ra biển" },
+  { lat: 21.03, lng: 105.85, name: "Hà Nội", note: "Thủ đô Việt Nam" },
+  { lat: 12.24, lng: 109.19, name: "Nha Trang", note: "Gần nhất với quần đảo Trường Sa" },
+  { lat: 10.34, lng: 107.08, name: "Vũng Tàu", note: "Thành phố dầu khí, cảng biển quan trọng" },
+  { lat: 20.96, lng: 107.05, name: "Hạ Long", note: "Di sản thiên nhiên thế giới" },
+];
+cities.forEach(c => {
+  L.marker([c.lat, c.lng], { icon: createIcon('#ff9800', 10) })
+    .addTo(map)
+    .bindPopup(`<b>🟠 ${c.name}</b><br><small>${c.note}</small>`);
+});
+
+// Vietnam coastline highlight (simplified polygon)
+const vnCoast = [
+  [23.3, 104.8], [22.5, 103.0], [22.0, 102.8], [21.5, 102.3],
+  [20.5, 103.8], [19.0, 105.5], [17.5, 106.5], [16.5, 107.2],
+  [15.0, 108.5], [12.5, 109.5], [11.5, 109.2], [10.5, 107.5],
+  [10.0, 104.7], [10.3, 103.5], [10.5, 104.0], [11.0, 106.0],
+  [11.5, 108.5], [12.5, 109.5], [15.0, 108.8], [17.0, 107.5],
+  [19.5, 105.8], [21.0, 105.2], [22.5, 104.0], [23.3, 104.8]
+];
+L.polygon(vnCoast, {
+  color: '#4caf50', weight: 2, fillColor: '#4caf50', fillOpacity: 0.07,
+  dashArray: '6,4'
+}).addTo(map).bindPopup('<b>🇻🇳 Việt Nam</b><br>Diện tích đất liền: 331.212 km²<br>Đường bờ biển: 3.260 km');
+
+// EEZ approximate boundary (200nm)
+const eezPoints = [
+  [21.5, 117.5], [17.0, 117.0], [12.0, 115.5], [8.0, 112.0],
+  [7.0, 107.5],  [9.0, 103.5],  [11.0, 103.0], [14.0, 107.0],
+  [17.0, 108.5], [19.0, 110.5], [20.5, 112.0], [21.5, 117.5]
+];
+L.polyline(eezPoints, {
+  color: 'rgba(255,165,0,0.7)', weight: 2.5, dashArray: '8,5'
+}).addTo(map).bindPopup('<b>⚓ Vùng đặc quyền kinh tế Việt Nam (ước lượng)</b><br>Rộng ~1 triệu km², tính từ đường cơ sở 200 hải lý');
+
+// Scale info
+L.control.scale({ imperial: false }).addTo(map);
+</script>
+</body>
+</html>
