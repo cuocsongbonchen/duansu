@@ -545,7 +545,6 @@
     <p style="color:rgba(255,255,255,.6);margin-bottom:20px;font-size:.9rem;">Dùng chuột để zoom, kéo để di chuyển. Nhấn các nút bên dưới để đổi lớp bản đồ.</p>
 
     <div class="map-controls">
-      <button class="map-btn active" id="btnStreet"> Bản đồ đường</button>
       <button class="map-btn" id="btnSatellite"> Vệ tinh</button>
       <button class="map-btn" id="btnTopo"> Địa hình</button>
       <button class="map-btn" id="btnReset"> Reset View</button>
@@ -861,14 +860,6 @@ const map = L.map('map', {
 // ===== TILE LAYERS =====
 
 // Bản đồ sáng đẹp
-const streetLayer = L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  {
-    attribution: '&copy; OpenStreetMap & CARTO',
-    subdomains: 'abcd',
-    maxZoom: 20
-  }
-);
 
 // Vệ tinh đẹp không tiếng Trung
 const satelliteLayer = L.tileLayer(
@@ -888,9 +879,9 @@ const topoLayer = L.tileLayer(
   }
 );
 
-streetLayer.addTo(map);
+satelliteLayer.addTo(map);
 
-let currentLayer = streetLayer;
+let currentLayer = satelliteLayer;
 
 // ===== MAP SWITCH =====
 
@@ -908,11 +899,6 @@ function switchLayer(layer, buttonId) {
 
   document.getElementById(buttonId).classList.add('active');
 }
-
-document.getElementById('btnStreet')
-  .addEventListener('click', () => {
-    switchLayer(streetLayer, 'btnStreet');
-  });
 
 document.getElementById('btnSatellite')
   .addEventListener('click', () => {
@@ -1100,33 +1086,18 @@ hoangSaMarkers.forEach(m => {
 });
 
 // ===== CHE TEXT TIẾNG TRUNG =====
-
-L.circle([16.7, 112.1], {
-
-  radius: 50000,
-
-  color: '#9fd3d3',
-
-  fillColor: '#9fd3d3',
-
-  fillOpacity: 1,
-
-  stroke: false
-
-}).addTo(map);
-
-// ===== LABEL HOÀNG SA =====
-
-L.marker([16.7, 112.1], {
+L.marker([9.3, 113.8], {
 
   icon: L.divIcon({
 
     className: '',
 
+    
 
   })
 
 }).addTo(map);
+
 
 // =========================
 // TRUONG SA
